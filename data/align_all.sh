@@ -9,11 +9,16 @@ if [ -n "$DATA_DIR" ]; then
     REF="$DATA_DIR/reference/GRCh38_reference.fa"
 fi
 
+# Set number of processors (default to 8 if not set)
+if [ -z "$NUM_PROCESSORS" ]; then
+    NUM_PROCESSORS=8
+fi
+
 for PREFIX in *_R1.fastq.gz; do
     SAMPLE=${PREFIX%_R1.fastq.gz}
     if [ -f "${SAMPLE}_R2.fastq.gz" ]; then
         echo "Aligning $SAMPLE ..."
-        bwa mem -t 8 "$REF" "${SAMPLE}_R1.fastq.gz" "${SAMPLE}_R2.fastq.gz" | samtools sort -o "${SAMPLE}.bam"
+        bwa mem -t "$NUM_PROCESSORS" "$REF" "${SAMPLE}_R1.fastq.gz" "${SAMPLE}_R2.fastq.gz" | samtools sort -o "${SAMPLE}.bam"
         samtools index "${SAMPLE}.bam"
     else
         echo "Warning: Paired file for $SAMPLE not found, skipping."

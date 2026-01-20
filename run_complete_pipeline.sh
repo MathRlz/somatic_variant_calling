@@ -5,6 +5,10 @@
 
 set -e  # Exit on error
 
+# Configuration
+NUM_PROCESSORS=8  # Number of processors/threads to use for parallel operations
+export NUM_PROCESSORS
+
 # Parse command line arguments
 SKIP_DOWNLOAD=false
 SKIP_ALIGNMENT=false
@@ -75,7 +79,7 @@ if [ -z "$PROJECT_DIR" ]; then
 fi
 
 if [ -z "$DATA_DIR" ]; then
-    DATA_DIR="$HOME/storage/variant_calling_data"
+    DATA_DIR="$HOME/somatic_variant_calling/data"
 fi
 
 echo "========================================="
@@ -85,6 +89,7 @@ echo ""
 echo "Configuration:"
 echo "  Project directory: $PROJECT_DIR"
 echo "  Data directory: $DATA_DIR"
+echo "  Number of processors: $NUM_PROCESSORS"
 echo "  Skip setup: $SKIP_SETUP"
 echo "  Skip download: $SKIP_DOWNLOAD"
 echo "  Skip alignment: $SKIP_ALIGNMENT"
