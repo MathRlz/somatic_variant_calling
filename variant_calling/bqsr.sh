@@ -43,10 +43,35 @@ fi
 
 mkdir -p "$RECAL_DIR" "$RECAL_TABLES_DIR"
 
+# Function to check if sample should be processed based on selected patients
+should_process_sample() {
+    local sample=$1
+    # Extract patient ID from sample name (remove -T or -N suffix)
+    local patient_id="${sample%-[TN]}"
+
+    # If SELECTED_PATIENTS_FILE is set and exists, check if patient is selected
+    if [ -n "$SELECTED_PATIENTS_FILE" ] && [ -f "$SELECTED_PATIENTS_FILE" ]; then
+        if grep -q "^${patient_id}$" "$SELECTED_PATIENTS_FILE"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    # If no selection file, process all samples
+    return 0
+}
+
 for bam in "$RG_DIR"/*_rg.bam; do
     sample=$(basename "$bam" _rg.bam)
+
+    # Check if sample should be processed
+    if ! should_process_sample "$sample"; then
+        echo "Skipping $sample (not in selected patients)"
+        continue
+    fi
+
     echo "Processing $sample..."
-    
+
     # Step 1: Build recalibration table
     gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" BaseRecalibrator \
         -I "$bam" \
@@ -60,7 +85,7 @@ for bam in "$RG_DIR"/*_rg.bam; do
         -R "$REFERENCE" \
         --bqsr-recal-file "$RECAL_TABLES_DIR/${sample}_recal_data.table" \
         -O "$RECAL_DIR/${sample}_recalibrated.bam"
-    
+
     echo "Completed $sample"
 done
 

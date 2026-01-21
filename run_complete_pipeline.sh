@@ -172,6 +172,103 @@ if [ "$SKIP_DOWNLOAD" = false ]; then
 fi
 
 # =========================================
+# PATIENT SELECTION
+# =========================================
+
+echo "========================================="
+echo "Patient Selection"
+echo "========================================="
+echo ""
+
+# Function to get available patients from FASTQ files
+get_available_patients() {
+    local fastq_dir="$DATA_DIR/fastq"
+    if [ -d "$fastq_dir" ]; then
+        # Find unique patient IDs from FASTQ files (pattern: PATIENT-T_R1.fastq.gz or PATIENT-N_R1.fastq.gz)
+        ls "$fastq_dir"/*_R1.fastq.gz 2>/dev/null | \
+            xargs -n1 basename 2>/dev/null | \
+            sed 's/_R1.fastq.gz$//' | \
+            sed 's/-[TN]$//' | \
+            sort -u
+    fi
+}
+
+# Function to check if patient has both tumor and normal samples
+check_patient_complete() {
+    local patient=$1
+    local fastq_dir="$DATA_DIR/fastq"
+    if [ -f "$fastq_dir/${patient}-T_R1.fastq.gz" ] && [ -f "$fastq_dir/${patient}-N_R1.fastq.gz" ]; then
+        return 0
+    fi
+    return 1
+}
+
+# Get list of available patients
+AVAILABLE_PATIENTS=($(get_available_patients))
+
+if [ ${#AVAILABLE_PATIENTS[@]} -eq 0 ]; then
+    echo "No patient data found in $DATA_DIR/fastq"
+    echo "Please download sample data first."
+    exit 1
+fi
+
+echo "Available patients:"
+echo "-------------------"
+i=1
+for patient in "${AVAILABLE_PATIENTS[@]}"; do
+    # Check if patient has both tumor and normal
+    if check_patient_complete "$patient"; then
+        status="[T+N]"
+    elif [ -f "$DATA_DIR/fastq/${patient}-T_R1.fastq.gz" ]; then
+        status="[T only]"
+    else
+        status="[N only]"
+    fi
+    echo "  $i) $patient $status"
+    i=$((i+1))
+done
+echo ""
+
+echo "Options:"
+echo "  a) Process ALL patients"
+echo "  Enter numbers separated by spaces to select specific patients"
+echo ""
+read -p "Enter your choice: " PATIENT_CHOICE
+
+# Process selection
+SELECTED_PATIENTS=()
+if [ "$PATIENT_CHOICE" = "a" ] || [ "$PATIENT_CHOICE" = "A" ] || [ "$PATIENT_CHOICE" = "all" ]; then
+    SELECTED_PATIENTS=("${AVAILABLE_PATIENTS[@]}")
+    echo "Selected: ALL patients"
+else
+    for num in $PATIENT_CHOICE; do
+        if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le ${#AVAILABLE_PATIENTS[@]} ]; then
+            SELECTED_PATIENTS+=("${AVAILABLE_PATIENTS[$((num-1))]}")
+        fi
+    done
+fi
+
+if [ ${#SELECTED_PATIENTS[@]} -eq 0 ]; then
+    echo "Error: No valid patients selected."
+    exit 1
+fi
+
+echo ""
+echo "Selected patients for processing:"
+for patient in "${SELECTED_PATIENTS[@]}"; do
+    echo "  - $patient"
+done
+echo ""
+
+# Save selected patients to file for use by other scripts
+SELECTED_PATIENTS_FILE="$DATA_DIR/selected_patients.txt"
+printf "%s\n" "${SELECTED_PATIENTS[@]}" > "$SELECTED_PATIENTS_FILE"
+export SELECTED_PATIENTS_FILE
+
+echo "Patient selection saved to: $SELECTED_PATIENTS_FILE"
+echo ""
+
+# =========================================
 # STEP 3: ALIGN READS TO REFERENCE
 # =========================================
 

@@ -23,8 +23,33 @@ if [ -z "$NUM_PROCESSORS" ]; then
     NUM_PROCESSORS=8
 fi
 
+# Function to check if sample should be processed based on selected patients
+should_process_sample() {
+    local sample=$1
+    # Extract patient ID from sample name (remove -T or -N suffix)
+    local patient_id="${sample%-[TN]}"
+
+    # If SELECTED_PATIENTS_FILE is set and exists, check if patient is selected
+    if [ -n "$SELECTED_PATIENTS_FILE" ] && [ -f "$SELECTED_PATIENTS_FILE" ]; then
+        if grep -q "^${patient_id}$" "$SELECTED_PATIENTS_FILE"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    # If no selection file, process all samples
+    return 0
+}
+
 for PREFIX in *_R1.fastq.gz; do
     SAMPLE=${PREFIX%_R1.fastq.gz}
+
+    # Check if sample should be processed
+    if ! should_process_sample "$SAMPLE"; then
+        echo "Skipping $SAMPLE (not in selected patients)"
+        continue
+    fi
+
     if [ -f "${SAMPLE}_R2.fastq.gz" ]; then
         echo "Aligning $SAMPLE ..."
         bwa mem -t "$NUM_PROCESSORS" "$REF" "${SAMPLE}_R1.fastq.gz" "${SAMPLE}_R2.fastq.gz" | samtools sort -o "${SAMPLE}.bam"

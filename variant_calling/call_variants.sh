@@ -22,6 +22,22 @@ if [ ! -f "$REFERENCE" ]; then
     exit 1
 fi
 
+# Function to check if patient should be processed based on selected patients
+should_process_patient() {
+    local patient_id=$1
+
+    # If SELECTED_PATIENTS_FILE is set and exists, check if patient is selected
+    if [ -n "$SELECTED_PATIENTS_FILE" ] && [ -f "$SELECTED_PATIENTS_FILE" ]; then
+        if grep -q "^${patient_id}$" "$SELECTED_PATIENTS_FILE"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    # If no selection file, process all patients
+    return 0
+}
+
 # Auto-detect tumor-normal pairs from recalibrated BAM files
 # Tumor samples end with -T, Normal samples end with -N
 declare -A PAIRS
@@ -33,6 +49,13 @@ for tumor_bam in "$RECAL_DIR"/*-T_recalibrated.bam; do
     tumor=$(basename "$tumor_bam" _recalibrated.bam)
     # Extract patient ID (e.g., TCR002101 from TCR002101-T)
     patient_id="${tumor%-T}"
+
+    # Check if patient should be processed
+    if ! should_process_patient "$patient_id"; then
+        echo "Skipping $patient_id (not in selected patients)"
+        continue
+    fi
+
     # Construct normal sample name
     normal="${patient_id}-N"
     normal_bam="$RECAL_DIR/${normal}_recalibrated.bam"

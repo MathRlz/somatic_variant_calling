@@ -10,6 +10,22 @@ REPORTS_DIR="${DATA_DIR}/reports"
 
 mkdir -p "$REPORTS_DIR"
 
+# Function to check if patient should be processed based on selected patients
+should_process_patient() {
+    local patient_id=$1
+
+    # If SELECTED_PATIENTS_FILE is set and exists, check if patient is selected
+    if [ -n "$SELECTED_PATIENTS_FILE" ] && [ -f "$SELECTED_PATIENTS_FILE" ]; then
+        if grep -q "^${patient_id}$" "$SELECTED_PATIENTS_FILE"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    # If no selection file, process all patients
+    return 0
+}
+
 # Track processed samples for summary
 PROCESSED_SAMPLES=()
 
@@ -17,6 +33,13 @@ for vcf in "$PRIORITY_DIR"/*_high_confidence.vcf.gz; do
     [ -f "$vcf" ] || continue
 
     sample=$(basename "$vcf" _high_confidence.vcf.gz)
+
+    # Check if patient should be processed
+    if ! should_process_patient "$sample"; then
+        echo "Skipping $sample (not in selected patients)"
+        continue
+    fi
+
     PROCESSED_SAMPLES+=("$sample")
     echo "Generating report for $sample..."
 

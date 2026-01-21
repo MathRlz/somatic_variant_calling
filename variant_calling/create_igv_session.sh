@@ -17,6 +17,22 @@ cat > "$OUTPUT_FILE" << EOF
         <Resource path="$REFERENCE"/>
 EOF
 
+# Function to check if patient should be processed based on selected patients
+should_process_patient() {
+    local patient_id=$1
+
+    # If SELECTED_PATIENTS_FILE is set and exists, check if patient is selected
+    if [ -n "$SELECTED_PATIENTS_FILE" ] && [ -f "$SELECTED_PATIENTS_FILE" ]; then
+        if grep -q "^${patient_id}$" "$SELECTED_PATIENTS_FILE"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    # If no selection file, process all patients
+    return 0
+}
+
 # Auto-detect samples from recalibrated BAM files
 # Look for tumor files (*-T_recalibrated.bam) and extract patient IDs
 found_samples=0
@@ -27,6 +43,13 @@ for tumor_bam in "$BAM_DIR"/*-T_recalibrated.bam; do
     # Extract patient ID (e.g., TCR002101 from TCR002101-T_recalibrated.bam)
     tumor_name=$(basename "$tumor_bam" _recalibrated.bam)
     sample="${tumor_name%-T}"
+
+    # Check if patient should be processed
+    if ! should_process_patient "$sample"; then
+        echo "Skipping $sample (not in selected patients)"
+        continue
+    fi
+
     normal_bam="$BAM_DIR/${sample}-N_recalibrated.bam"
     vcf_file="$PRIORITY_DIR/${sample}_high_confidence.vcf.gz"
 
