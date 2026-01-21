@@ -89,6 +89,22 @@ elif [ -n "$FASTQ_FTP" ]; then
 
 else
     echo "ENA does not provide fastq files for $SRR_ID. Falling back to NCBI prefetch + fastq-dump."
+
+    # Clean up any stale lock files from previous interrupted downloads
+    SRA_DIR="$PWD/$SRR_ID"
+    if [ -d "$SRA_DIR" ]; then
+        LOCK_FILE="$SRA_DIR/${SRR_ID}.sra.lock"
+        if [ -f "$LOCK_FILE" ]; then
+            echo "Removing stale lock file: $LOCK_FILE"
+            rm -f "$LOCK_FILE"
+        fi
+        # Also clean up any incomplete temp files
+        if [ -f "$SRA_DIR/${SRR_ID}.sra.tmp" ] && [ ! -f "$SRA_DIR/${SRR_ID}.sra" ]; then
+            echo "Removing incomplete download files..."
+            rm -f "$SRA_DIR/${SRR_ID}.sra.tmp" "$SRA_DIR/${SRR_ID}.sra.prf"
+        fi
+    fi
+
     # Download with prefetch
     prefetch -p $SRR_ID
     # Convert to FASTQ using the correct SRA file path
