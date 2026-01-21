@@ -64,6 +64,7 @@ awk -F',' 'NR>1 {
 }' runinfo.csv > sample_summary.txt
 
 # Function to check if sample is already downloaded
+# Always returns 0 to avoid triggering set -e; use echo output for status
 check_sample_downloaded() {
     local sample=$1
     # Check for paired-end files
@@ -73,7 +74,7 @@ check_sample_downloaded() {
             return 0
         else
             echo "PARTIAL"
-            return 1
+            return 0
         fi
     fi
     # Check for single-end file
@@ -83,11 +84,11 @@ check_sample_downloaded() {
             return 0
         else
             echo "PARTIAL"
-            return 1
+            return 0
         fi
     fi
     echo "PENDING"
-    return 1
+    return 0
 }
 
 # Step 2: Display available samples with download status
