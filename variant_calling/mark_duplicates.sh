@@ -1,7 +1,15 @@
 #!/bin/bash
+# Mark duplicates in a single BAM file using GATK
+# Usage: ./mark_duplicates.sh SAMPLE_NAME
+# Example: ./mark_duplicates.sh TCR002101-T
 
-# Mark duplicates in BAM files using Picard
-# This removes PCR and optical duplicates
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 SAMPLE_NAME"
+    echo "Example: $0 TCR002101-T"
+    exit 1
+fi
+
+SAMPLE=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -12,19 +20,24 @@ METRICS_DIR="${DATA_DIR}/metrics"
 
 mkdir -p "$MARKED_DIR" "$METRICS_DIR"
 
-# Process each BAM file
-for bam in "$BAM_DIR"/*.bam; do
-    sample=$(basename "$bam" .bam)
-    echo "Processing $sample..."
-    
-    gatk MarkDuplicates \
-        -I "$bam" \
-        -O "$MARKED_DIR/${sample}_marked.bam" \
-        -M "$METRICS_DIR/${sample}_dup_metrics.txt" \
-        --CREATE_INDEX true \
-        --VALIDATION_STRINGENCY LENIENT
-    
-    echo "Completed $sample"
-done
+INPUT_BAM="$BAM_DIR/${SAMPLE}.bam"
+OUTPUT_BAM="$MARKED_DIR/${SAMPLE}_marked.bam"
 
-echo "All samples processed!"
+# Validate input exists
+if [ ! -f "$INPUT_BAM" ]; then
+    echo "Error: Input BAM not found: $INPUT_BAM"
+    exit 1
+fi
+
+echo "Processing $SAMPLE..."
+echo "  Input: $INPUT_BAM"
+echo "  Output: $OUTPUT_BAM"
+
+gatk MarkDuplicates \
+    -I "$INPUT_BAM" \
+    -O "$OUTPUT_BAM" \
+    -M "$METRICS_DIR/${SAMPLE}_dup_metrics.txt" \
+    --CREATE_INDEX true \
+    --VALIDATION_STRINGENCY LENIENT
+
+echo "Completed $SAMPLE"

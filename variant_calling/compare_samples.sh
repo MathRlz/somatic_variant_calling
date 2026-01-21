@@ -1,6 +1,15 @@
 #!/bin/bash
+# Compare tumor vs normal to identify tumor-specific variants for a single patient
+# Usage: ./compare_samples.sh PATIENT_ID
+# Example: ./compare_samples.sh TCR002101
 
-# Compare tumor vs normal to identify tumor-specific variants
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 PATIENT_ID"
+    echo "Example: $0 TCR002101"
+    exit 1
+fi
+
+PATIENT=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -10,33 +19,27 @@ COMPARISON_DIR="${DATA_DIR}/comparisons"
 
 mkdir -p "$COMPARISON_DIR"
 
-# Auto-detect samples from prioritized VCF files
-# Extract patient IDs from files like TCR002101_high_confidence.vcf.gz
-found_samples=0
+INPUT_VCF="$PRIORITY_DIR/${PATIENT}_high_confidence.vcf.gz"
+OUTPUT_VCF="$COMPARISON_DIR/${PATIENT}_somatic_candidates.vcf.gz"
 
-for vcf in "$PRIORITY_DIR"/*_high_confidence.vcf.gz; do
-    [ -f "$vcf" ] || continue
-
-    # Extract sample name (e.g., TCR002101 from TCR002101_high_confidence.vcf.gz)
-    sample=$(basename "$vcf" _high_confidence.vcf.gz)
-
-    echo "Comparing tumor vs normal for $sample..."
-
-    # Extract variants with minimum depth (AF field may not be available in all formats)
-    bcftools view -i 'FORMAT/DP>=20' "$vcf" \
-        -O z -o "$COMPARISON_DIR/${sample}_somatic_candidates.vcf.gz"
-
-    tabix -p vcf "$COMPARISON_DIR/${sample}_somatic_candidates.vcf.gz"
-
-    # Count variants
-    count=$(bcftools view -H "$COMPARISON_DIR/${sample}_somatic_candidates.vcf.gz" | wc -l)
-    echo "Found $count somatic candidates for $sample"
-
-    found_samples=$((found_samples + 1))
-done
-
-if [ $found_samples -eq 0 ]; then
-    echo "Warning: No prioritized VCF files found in $PRIORITY_DIR"
+# Validate input exists
+if [ ! -f "$INPUT_VCF" ]; then
+    echo "Error: Input VCF not found: $INPUT_VCF"
+    exit 1
 fi
 
-echo "Sample comparison completed!"
+echo "Comparing tumor vs normal for $PATIENT..."
+echo "  Input: $INPUT_VCF"
+echo "  Output: $OUTPUT_VCF"
+
+# Extract variants with minimum depth
+bcftools view -i 'FORMAT/DP>=20' "$INPUT_VCF" \
+    -O z -o "$OUTPUT_VCF"
+
+tabix -p vcf "$OUTPUT_VCF"
+
+# Count variants
+count=$(bcftools view -H "$OUTPUT_VCF" | wc -l)
+echo "Found $count somatic candidates for $PATIENT"
+
+echo "Completed $PATIENT"

@@ -1,6 +1,15 @@
 #!/bin/bash
+# Filter and prioritize somatic variants for a single patient
+# Usage: ./prioritize_variants.sh PATIENT_ID
+# Example: ./prioritize_variants.sh TCR002101
 
-# Filter and prioritize somatic variants
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 PATIENT_ID"
+    echo "Example: $0 TCR002101"
+    exit 1
+fi
+
+PATIENT=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -10,19 +19,25 @@ PRIORITY_DIR="${DATA_DIR}/vcfs_prioritized"
 
 mkdir -p "$PRIORITY_DIR"
 
-for vcf in "$FILTERED_DIR"/*_filtered.vcf.gz; do
-    sample=$(basename "$vcf" _filtered.vcf.gz)
-    echo "Prioritizing $sample..."
-    
-    # Extract PASS variants only with minimum depth
-    bcftools view -f PASS "$vcf" \
-        | bcftools view -i 'FORMAT/DP>=20' \
-        -o "$PRIORITY_DIR/${sample}_high_confidence.vcf.gz" -O z
-    
-    # Index
-    tabix -p vcf "$PRIORITY_DIR/${sample}_high_confidence.vcf.gz"
-    
-    echo "Completed $sample"
-done
+INPUT_VCF="$FILTERED_DIR/${PATIENT}_filtered.vcf.gz"
+OUTPUT_VCF="$PRIORITY_DIR/${PATIENT}_high_confidence.vcf.gz"
 
-echo "Variant prioritization completed!"
+# Validate input exists
+if [ ! -f "$INPUT_VCF" ]; then
+    echo "Error: Input VCF not found: $INPUT_VCF"
+    exit 1
+fi
+
+echo "Prioritizing $PATIENT..."
+echo "  Input: $INPUT_VCF"
+echo "  Output: $OUTPUT_VCF"
+
+# Extract PASS variants only with minimum depth
+bcftools view -f PASS "$INPUT_VCF" \
+    | bcftools view -i 'FORMAT/DP>=20' \
+    -o "$OUTPUT_VCF" -O z
+
+# Index
+tabix -p vcf "$OUTPUT_VCF"
+
+echo "Completed $PATIENT"

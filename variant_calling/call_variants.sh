@@ -1,6 +1,15 @@
 #!/bin/bash
+# Call somatic variants using GATK Mutect2 for a single patient
+# Usage: ./call_variants.sh PATIENT_ID
+# Example: ./call_variants.sh TCR002101
 
-# Call somatic variants using GATK Mutect2
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 PATIENT_ID"
+    echo "Example: $0 TCR002101"
+    exit 1
+fi
+
+PATIENT=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -22,51 +31,36 @@ if [ ! -f "$REFERENCE" ]; then
     exit 1
 fi
 
-# Auto-detect tumor-normal pairs from recalibrated BAM files
-# Tumor samples end with -T, Normal samples end with -N
-declare -A PAIRS
+# Define tumor and normal sample names
+TUMOR="${PATIENT}-T"
+NORMAL="${PATIENT}-N"
+TUMOR_BAM="$RECAL_DIR/${TUMOR}_recalibrated.bam"
+NORMAL_BAM="$RECAL_DIR/${NORMAL}_recalibrated.bam"
 
-for tumor_bam in "$RECAL_DIR"/*-T_recalibrated.bam; do
-    [ -f "$tumor_bam" ] || continue
-
-    # Extract tumor sample name (e.g., TCR002101-T from TCR002101-T_recalibrated.bam)
-    tumor=$(basename "$tumor_bam" _recalibrated.bam)
-    # Extract patient ID (e.g., TCR002101 from TCR002101-T)
-    patient_id="${tumor%-T}"
-    # Construct normal sample name
-    normal="${patient_id}-N"
-    normal_bam="$RECAL_DIR/${normal}_recalibrated.bam"
-
-    # Only add pair if both tumor and normal exist
-    if [ -f "$normal_bam" ]; then
-        PAIRS["$tumor"]="$normal"
-        echo "Found tumor-normal pair: $tumor / $normal"
-    else
-        echo "Warning: No matching normal found for $tumor (expected $normal_bam)"
-    fi
-done
-
-if [ ${#PAIRS[@]} -eq 0 ]; then
-    echo "Error: No tumor-normal pairs found in $RECAL_DIR"
+# Validate input files exist
+if [ ! -f "$TUMOR_BAM" ]; then
+    echo "Error: Tumor BAM not found: $TUMOR_BAM"
     exit 1
 fi
 
-for tumor in "${!PAIRS[@]}"; do
-    normal="${PAIRS[$tumor]}"
-    pair_name="${tumor%-T}"
+if [ ! -f "$NORMAL_BAM" ]; then
+    echo "Error: Normal BAM not found: $NORMAL_BAM"
+    exit 1
+fi
 
-    echo "Calling variants for pair: $pair_name (using $NUM_PROCESSORS threads)"
+echo "Calling variants for patient: $PATIENT"
+echo "  Tumor: $TUMOR_BAM"
+echo "  Normal: $NORMAL_BAM"
+echo "  Threads: $NUM_PROCESSORS"
 
-    gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" Mutect2 \
-        -R "$REFERENCE" \
-        -I "$RECAL_DIR/${tumor}_recalibrated.bam" \
-        -I "$RECAL_DIR/${normal}_recalibrated.bam" \
-        -normal "${normal}" \
-        -O "$VCF_DIR/${pair_name}_raw.vcf.gz" \
-        --f1r2-tar-gz "$VCF_DIR/${pair_name}_f1r2.tar.gz" \
-        --native-pair-hmm-threads "$NUM_PROCESSORS"
+gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" Mutect2 \
+    -R "$REFERENCE" \
+    -I "$TUMOR_BAM" \
+    -I "$NORMAL_BAM" \
+    -normal "${NORMAL}" \
+    -O "$VCF_DIR/${PATIENT}_raw.vcf.gz" \
+    --f1r2-tar-gz "$VCF_DIR/${PATIENT}_f1r2.tar.gz" \
+    --native-pair-hmm-threads "$NUM_PROCESSORS"
 
-    echo "Completed $pair_name"
-done
-
-echo "Variant calling completed!"
+echo "Completed $PATIENT"
+echo "Output: $VCF_DIR/${PATIENT}_raw.vcf.gz"

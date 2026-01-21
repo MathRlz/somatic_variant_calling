@@ -1,6 +1,15 @@
 #!/bin/bash
+# Filter variants using GATK FilterMutectCalls for a single patient
+# Usage: ./filter_variants.sh PATIENT_ID
+# Example: ./filter_variants.sh TCR002101
 
-# Filter variants using GATK FilterMutectCalls
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 PATIENT_ID"
+    echo "Example: $0 TCR002101"
+    exit 1
+fi
+
+PATIENT=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -17,23 +26,29 @@ if [ ! -f "$REFERENCE" ]; then
     exit 1
 fi
 
-for vcf in "$VCF_DIR"/*_raw.vcf.gz; do
-    sample=$(basename "$vcf" _raw.vcf.gz)
-    echo "Filtering $sample..."
-    
-    # Learn orientation bias
-    gatk LearnReadOrientationModel \
-        -I "$VCF_DIR/${sample}_f1r2.tar.gz" \
-        -O "$VCF_DIR/${sample}_read-orientation-model.tar.gz"
-    
-    # Filter variants
-    gatk FilterMutectCalls \
-        -R "$REFERENCE" \
-        -V "$vcf" \
-        --ob-priors "$VCF_DIR/${sample}_read-orientation-model.tar.gz" \
-        -O "$FILTERED_DIR/${sample}_filtered.vcf.gz"
-    
-    echo "Completed $sample"
-done
+INPUT_VCF="$VCF_DIR/${PATIENT}_raw.vcf.gz"
+OUTPUT_VCF="$FILTERED_DIR/${PATIENT}_filtered.vcf.gz"
 
-echo "Variant filtering completed!"
+# Validate input exists
+if [ ! -f "$INPUT_VCF" ]; then
+    echo "Error: Input VCF not found: $INPUT_VCF"
+    exit 1
+fi
+
+echo "Filtering $PATIENT..."
+echo "  Input: $INPUT_VCF"
+echo "  Output: $OUTPUT_VCF"
+
+# Learn orientation bias
+gatk LearnReadOrientationModel \
+    -I "$VCF_DIR/${PATIENT}_f1r2.tar.gz" \
+    -O "$VCF_DIR/${PATIENT}_read-orientation-model.tar.gz"
+
+# Filter variants
+gatk FilterMutectCalls \
+    -R "$REFERENCE" \
+    -V "$INPUT_VCF" \
+    --ob-priors "$VCF_DIR/${PATIENT}_read-orientation-model.tar.gz" \
+    -O "$OUTPUT_VCF"
+
+echo "Completed $PATIENT"

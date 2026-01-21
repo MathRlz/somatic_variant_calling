@@ -1,4 +1,15 @@
 #!/bin/bash
+# Base Quality Score Recalibration for a single sample
+# Usage: ./bqsr.sh SAMPLE_NAME
+# Example: ./bqsr.sh TCR002101-T
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 SAMPLE_NAME"
+    echo "Example: $0 TCR002101-T"
+    exit 1
+fi
+
+SAMPLE=$1
 
 # Use DATA_DIR if set, otherwise assume we're running from the data directory
 DATA_DIR="${DATA_DIR:-.}"
@@ -9,7 +20,6 @@ RECAL_TABLES_DIR="${DATA_DIR}/recal_tables"
 REFERENCE="${DATA_DIR}/reference/GRCh38_reference.fa"
 
 # Try multiple known sites files (dbSNP) - use whichever exists
-# The download_reference.sh script downloads dbsnp_156.grch38.vcf.gz
 KNOWN_SITES=""
 for candidate in "${DATA_DIR}/reference/dbsnp_156.grch38.vcf.gz" \
                  "${DATA_DIR}/reference/All_20180418.vcf.gz" \
@@ -34,34 +44,35 @@ if [ -z "$KNOWN_SITES" ]; then
     exit 1
 fi
 
-echo "Using known sites: $KNOWN_SITES"
-
-# Set number of processors (for informational purposes only - BQSR has limited threading benefit)
-if [ -z "$NUM_PROCESSORS" ]; then
-    NUM_PROCESSORS=2
-fi
-
 mkdir -p "$RECAL_DIR" "$RECAL_TABLES_DIR"
 
-for bam in "$RG_DIR"/*_rg.bam; do
-    sample=$(basename "$bam" _rg.bam)
-    echo "Processing $sample..."
-    
-    # Step 1: Build recalibration table
-    gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" BaseRecalibrator \
-        -I "$bam" \
-        -R "$REFERENCE" \
-        --known-sites "$KNOWN_SITES" \
-        -O "$RECAL_TABLES_DIR/${sample}_recal_data.table"
+INPUT_BAM="$RG_DIR/${SAMPLE}_rg.bam"
+OUTPUT_BAM="$RECAL_DIR/${SAMPLE}_recalibrated.bam"
 
-    # Step 2: Apply recalibration
-    gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" ApplyBQSR \
-        -I "$bam" \
-        -R "$REFERENCE" \
-        --bqsr-recal-file "$RECAL_TABLES_DIR/${sample}_recal_data.table" \
-        -O "$RECAL_DIR/${sample}_recalibrated.bam"
-    
-    echo "Completed $sample"
-done
+# Validate input exists
+if [ ! -f "$INPUT_BAM" ]; then
+    echo "Error: Input BAM not found: $INPUT_BAM"
+    exit 1
+fi
 
-echo "BQSR completed for all samples!"
+echo "Processing $SAMPLE..."
+echo "  Input: $INPUT_BAM"
+echo "  Output: $OUTPUT_BAM"
+echo "  Reference: $REFERENCE"
+echo "  Known sites: $KNOWN_SITES"
+
+# Step 1: Build recalibration table
+gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" BaseRecalibrator \
+    -I "$INPUT_BAM" \
+    -R "$REFERENCE" \
+    --known-sites "$KNOWN_SITES" \
+    -O "$RECAL_TABLES_DIR/${SAMPLE}_recal_data.table"
+
+# Step 2: Apply recalibration
+gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" ApplyBQSR \
+    -I "$INPUT_BAM" \
+    -R "$REFERENCE" \
+    --bqsr-recal-file "$RECAL_TABLES_DIR/${SAMPLE}_recal_data.table" \
+    -O "$OUTPUT_BAM"
+
+echo "Completed $SAMPLE"
