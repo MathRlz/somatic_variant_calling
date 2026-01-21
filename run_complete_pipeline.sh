@@ -82,6 +82,9 @@ if [ -z "$DATA_DIR" ]; then
     DATA_DIR="$HOME/somatic_variant_calling/data"
 fi
 
+# Export DATA_DIR so subscripts can use it
+export DATA_DIR
+
 echo "========================================="
 echo "Somatic Variant Calling - Complete Pipeline"
 echo "========================================="

@@ -1,10 +1,24 @@
 #!/bin/bash
 
-RG_DIR="bam_with_rg"
-RECAL_DIR="bam_recalibrated"
-RECAL_TABLES_DIR="recal_tables"
-REFERENCE="reference/GRCh38_reference.fa"
-KNOWN_SITES="reference/All_20180418.vcf.gz"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+RG_DIR="${DATA_DIR}/bam_with_rg"
+RECAL_DIR="${DATA_DIR}/bam_recalibrated"
+RECAL_TABLES_DIR="${DATA_DIR}/recal_tables"
+REFERENCE="${DATA_DIR}/reference/GRCh38_reference.fa"
+KNOWN_SITES="${DATA_DIR}/reference/All_20180418.vcf.gz"
+
+# Validate required files exist
+if [ ! -f "$REFERENCE" ]; then
+    echo "Error: Reference genome not found at $REFERENCE"
+    exit 1
+fi
+
+if [ ! -f "$KNOWN_SITES" ]; then
+    echo "Error: Known sites VCF not found at $KNOWN_SITES"
+    exit 1
+fi
 
 # Set number of processors (for informational purposes only - BQSR has limited threading benefit)
 if [ -z "$NUM_PROCESSORS" ]; then

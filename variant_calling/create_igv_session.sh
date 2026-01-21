@@ -2,27 +2,58 @@
 
 # Create IGV session file for visualization
 
-PRIORITY_DIR="vcfs_prioritized"
-BAM_DIR="bam_recalibrated"
-REFERENCE="reference/GRCh38_reference.fa"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
 
-cat > igv_session.xml << EOF
+PRIORITY_DIR="${DATA_DIR}/vcfs_prioritized"
+BAM_DIR="${DATA_DIR}/bam_recalibrated"
+REFERENCE="${DATA_DIR}/reference/GRCh38_reference.fa"
+OUTPUT_FILE="${DATA_DIR}/igv_session.xml"
+
+cat > "$OUTPUT_FILE" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Session genome="hg38" version="8">
     <Resources>
         <Resource path="$REFERENCE"/>
 EOF
 
-for sample in TCR002101 TCR002182 TCR002361; do
-    echo "        <Resource path=\"$BAM_DIR/${sample}-T_recalibrated.bam\"/>" >> igv_session.xml
-    echo "        <Resource path=\"$BAM_DIR/${sample}-N_recalibrated.bam\"/>" >> igv_session.xml
-    echo "        <Resource path=\"$PRIORITY_DIR/${sample}_high_confidence.vcf.gz\"/>" >> igv_session.xml
+# Auto-detect samples from recalibrated BAM files
+# Look for tumor files (*-T_recalibrated.bam) and extract patient IDs
+found_samples=0
+
+for tumor_bam in "$BAM_DIR"/*-T_recalibrated.bam; do
+    [ -f "$tumor_bam" ] || continue
+
+    # Extract patient ID (e.g., TCR002101 from TCR002101-T_recalibrated.bam)
+    tumor_name=$(basename "$tumor_bam" _recalibrated.bam)
+    sample="${tumor_name%-T}"
+    normal_bam="$BAM_DIR/${sample}-N_recalibrated.bam"
+    vcf_file="$PRIORITY_DIR/${sample}_high_confidence.vcf.gz"
+
+    # Add tumor BAM
+    echo "        <Resource path=\"$tumor_bam\"/>" >> "$OUTPUT_FILE"
+
+    # Add normal BAM if it exists
+    if [ -f "$normal_bam" ]; then
+        echo "        <Resource path=\"$normal_bam\"/>" >> "$OUTPUT_FILE"
+    fi
+
+    # Add VCF if it exists
+    if [ -f "$vcf_file" ]; then
+        echo "        <Resource path=\"$vcf_file\"/>" >> "$OUTPUT_FILE"
+    fi
+
+    found_samples=$((found_samples + 1))
 done
 
-cat >> igv_session.xml << EOF
+cat >> "$OUTPUT_FILE" << EOF
     </Resources>
 </Session>
 EOF
 
-echo "IGV session file created: igv_session.xml"
+if [ $found_samples -eq 0 ]; then
+    echo "Warning: No samples found in $BAM_DIR"
+fi
+
+echo "IGV session file created: $OUTPUT_FILE"
 echo "Open this file in IGV to visualize your results"

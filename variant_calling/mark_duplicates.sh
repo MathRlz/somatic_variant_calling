@@ -3,9 +3,12 @@
 # Mark duplicates in BAM files using Picard
 # This removes PCR and optical duplicates
 
-BAM_DIR="bam"
-MARKED_DIR="bam_marked"
-METRICS_DIR="metrics"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+BAM_DIR="${DATA_DIR}/bam"
+MARKED_DIR="${DATA_DIR}/bam_marked"
+METRICS_DIR="${DATA_DIR}/metrics"
 
 mkdir -p "$MARKED_DIR" "$METRICS_DIR"
 

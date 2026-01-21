@@ -2,11 +2,20 @@
 
 # Filter variants using GATK FilterMutectCalls
 
-VCF_DIR="vcfs"
-FILTERED_DIR="vcfs_filtered"
-REFERENCE="reference/GRCh38_reference.fa"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+VCF_DIR="${DATA_DIR}/vcfs"
+FILTERED_DIR="${DATA_DIR}/vcfs_filtered"
+REFERENCE="${DATA_DIR}/reference/GRCh38_reference.fa"
 
 mkdir -p "$FILTERED_DIR"
+
+# Validate reference exists
+if [ ! -f "$REFERENCE" ]; then
+    echo "Error: Reference genome not found at $REFERENCE"
+    exit 1
+fi
 
 for vcf in "$VCF_DIR"/*_raw.vcf.gz; do
     sample=$(basename "$vcf" _raw.vcf.gz)
