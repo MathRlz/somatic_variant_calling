@@ -1,9 +1,3 @@
-# Data directories (too large for git)
-data/reference/
-data/fastq/
-data/bam/
-data/vcf/
-
 # Python
 __pycache__/
 *.py[cod]

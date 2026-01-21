@@ -2,8 +2,11 @@
 
 # Filter and prioritize somatic variants
 
-FILTERED_DIR="vcfs_filtered"
-PRIORITY_DIR="vcfs_prioritized"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+FILTERED_DIR="${DATA_DIR}/vcfs_filtered"
+PRIORITY_DIR="${DATA_DIR}/vcfs_prioritized"
 
 mkdir -p "$PRIORITY_DIR"
 

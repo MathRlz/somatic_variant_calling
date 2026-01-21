@@ -2,8 +2,11 @@
 
 # Add read groups to marked BAM files
 
-MARKED_DIR="bam_marked"
-RG_DIR="bam_with_rg"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+MARKED_DIR="${DATA_DIR}/bam_marked"
+RG_DIR="${DATA_DIR}/bam_with_rg"
 
 mkdir -p "$RG_DIR"
 

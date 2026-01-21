@@ -2,8 +2,11 @@
 
 # Annotate variants with VEP (Variant Effect Predictor)
 
-FILTERED_DIR="vcfs_filtered"
-ANNOTATED_DIR="vcfs_annotated"
+# Use DATA_DIR if set, otherwise assume we're running from the data directory
+DATA_DIR="${DATA_DIR:-.}"
+
+FILTERED_DIR="${DATA_DIR}/vcfs_filtered"
+ANNOTATED_DIR="${DATA_DIR}/vcfs_annotated"
 VEP_CACHE="$HOME/.vep"
 
 mkdir -p "$ANNOTATED_DIR"

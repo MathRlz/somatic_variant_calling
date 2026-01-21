@@ -1,12 +1,21 @@
 #!/bin/bash
 # Batch alignment for all paired-end samples in current directory
 
-# Use reference from parent directory structure
-REF="../reference/GRCh38_reference.fa"
-
-# If DATA_DIR is set, use that
+# Use DATA_DIR if set, otherwise try to find reference relative to script location
 if [ -n "$DATA_DIR" ]; then
     REF="$DATA_DIR/reference/GRCh38_reference.fa"
+else
+    # Try relative path from fastq directory
+    REF="../reference/GRCh38_reference.fa"
+fi
+
+# Validate reference exists
+if [ ! -f "$REF" ]; then
+    echo "Error: Reference genome not found at $REF"
+    echo "Please either:"
+    echo "  1. Set DATA_DIR environment variable and run from any directory"
+    echo "  2. Run this script from the fastq directory with reference in ../reference/"
+    exit 1
 fi
 
 # Set number of processors (default to 8 if not set)
