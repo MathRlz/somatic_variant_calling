@@ -6,8 +6,7 @@
 set -e  # Exit on error
 
 # Configuration
-NUM_PROCESSORS=8  # Number of processors/threads to use for parallel operations
-export NUM_PROCESSORS
+NUM_PROCESSORS=8  # Number of processors/threads to use for parallel operations (default)
 
 # Parse command line arguments
 SKIP_DOWNLOAD=false
@@ -38,6 +37,10 @@ while [[ $# -gt 0 ]]; do
             PROJECT_DIR="$2"
             shift 2
             ;;
+        --num-processors)
+            NUM_PROCESSORS="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -49,6 +52,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-setup          Skip environment setup (assumes already set up)"
             echo "  --data-dir DIR        Specify directory for data files (default: ~/storage/variant_calling_data)"
             echo "  --project-dir DIR     Specify project directory (default: ~/somatic_variant_calling)"
+            echo "  --num-processors N    Number of processors/threads to use (default: 8)"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "Examples:"
@@ -63,6 +67,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "  # Use custom directories:"
             echo "  $0 --data-dir ~/my_data --project-dir ~/my_project"
+            echo ""
+            echo "  # Use 16 processors:"
+            echo "  $0 --num-processors 16"
             exit 0
             ;;
         *)
@@ -82,8 +89,9 @@ if [ -z "$DATA_DIR" ]; then
     DATA_DIR="$HOME/somatic_variant_calling/data"
 fi
 
-# Export DATA_DIR so subscripts can use it
+# Export variables so subscripts can use them
 export DATA_DIR
+export NUM_PROCESSORS
 
 echo "========================================="
 echo "Somatic Variant Calling - Complete Pipeline"
