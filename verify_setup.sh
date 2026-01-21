@@ -105,7 +105,15 @@ echo ""
 
 echo "=== Checking Reference Data ==="
 check_file "$DATA_DIR/reference/GRCh38_reference.fa" || echo "  (Run data/download_reference.sh to download)"
-check_file "$DATA_DIR/reference/All_20180418.vcf.gz" || echo "  (Run data/download_reference.sh to download)"
+# Check for known sites VCF (dbSNP) - accept either filename
+if [ -f "$DATA_DIR/reference/dbsnp_156.grch38.vcf.gz" ]; then
+    echo "✓ File exists: $DATA_DIR/reference/dbsnp_156.grch38.vcf.gz"
+elif [ -f "$DATA_DIR/reference/All_20180418.vcf.gz" ]; then
+    echo "✓ File exists: $DATA_DIR/reference/All_20180418.vcf.gz"
+else
+    echo "✗ File missing: Known sites VCF (dbsnp_156.grch38.vcf.gz or All_20180418.vcf.gz)"
+    echo "  (Run data/download_reference.sh to download)"
+fi
 echo ""
 
 echo "=== Disk Space Check ==="
