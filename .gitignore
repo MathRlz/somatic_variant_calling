@@ -1,0 +1,58 @@
+# Data directories (too large for git)
+data/reference/
+data/fastq/
+data/bam/
+data/vcf/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Output files
+*.bam
+*.bam.bai
+*.bam.bai
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.vcf.idx
+*.dict
+*.fai
+*.bed
+*.bed.gz
+*.bed.gz.tbi
+
+# Compressed archives
+*.tar.gz
+*.zip
+*.bz2
+*.gz
+
+# Reports (can be regenerated)
+reports/
+metrics/
+logs/
+results/
+
+# Downloaded software (should be reinstalled via setup)
+software/

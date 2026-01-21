@@ -2,7 +2,7 @@
 
 # Master pipeline script - runs all steps sequentially
 
-set -e  # Exit on error
+set -euo pipefail # Exit on error, undefined variable, or error in pipeline
 
 echo "=== Starting Variant Calling Pipeline ==="
 

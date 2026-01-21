@@ -155,13 +155,14 @@ if [ "$SKIP_DOWNLOAD" = false ]; then
     echo "========================================="
     echo "STEP 2: Downloading sample data"
     echo "========================================="
+    echo ""
 
-    if [ ! -f "$SCRIPT_DIR/data/download_ncbi_minimal.sh" ]; then
-        echo "Warning: download_ncbi_minimal.sh not found, skipping sample download"
+    if [ ! -f "$SCRIPT_DIR/data/download_samples_interactive.sh" ]; then
+        echo "Warning: download_samples_interactive.sh not found, skipping sample download"
         echo "You can download samples manually using data/download_sample.sh"
     else
         cd "$DATA_DIR/fastq"
-        bash "$SCRIPT_DIR/data/download_ncbi_minimal.sh"
+        bash "$SCRIPT_DIR/data/download_samples_interactive.sh"
         cd "$DATA_DIR"
     fi
     echo ""
