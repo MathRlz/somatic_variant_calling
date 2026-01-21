@@ -63,13 +63,47 @@ awk -F',' 'NR>1 {
     printf "%s\t%s\t%s\t%s\t%s\n", sample, type, run, spots, bases
 }' runinfo.csv > sample_summary.txt
 
-# Step 2: Display available samples
+# Function to check if sample is already downloaded
+check_sample_downloaded() {
+    local sample=$1
+    # Check for paired-end files
+    if [ -f "${sample}_R1.fastq.gz" ] && [ -f "${sample}_R2.fastq.gz" ]; then
+        if [ ! -f "${sample}_R1.fastq.gz.aria2" ] && [ ! -f "${sample}_R2.fastq.gz.aria2" ]; then
+            echo "DOWNLOADED"
+            return 0
+        else
+            echo "PARTIAL"
+            return 1
+        fi
+    fi
+    # Check for single-end file
+    if [ -f "${sample}.fastq.gz" ]; then
+        if [ ! -f "${sample}.fastq.gz.aria2" ]; then
+            echo "DOWNLOADED"
+            return 0
+        else
+            echo "PARTIAL"
+            return 1
+        fi
+    fi
+    echo "PENDING"
+    return 1
+}
+
+# Step 2: Display available samples with download status
 echo "Step 2: Available Samples"
 echo "----------------------------------------"
 echo ""
-echo "Sample Name          Type      SRR ID        Spots       Bases"
-echo "================================================================"
-cat sample_summary.txt | column -t
+echo "Sample Name          Type      SRR ID        Spots       Bases       Status"
+echo "================================================================================"
+
+# Create enhanced summary with download status
+while IFS=$'\t' read -r sample_name type srr_id spots bases; do
+    if [ -n "$sample_name" ]; then
+        status=$(check_sample_downloaded "$sample_name")
+        printf "%-20s %-9s %-13s %-11s %-11s %s\n" "$sample_name" "$type" "$srr_id" "$spots" "$bases" "$status"
+    fi
+done < sample_summary.txt
 echo ""
 
 # Count samples by type
@@ -77,7 +111,19 @@ TUMOR_COUNT=$(grep -c "TUMOR" sample_summary.txt || echo "0")
 NORMAL_COUNT=$(grep -c "NORMAL" sample_summary.txt || echo "0")
 TOTAL_COUNT=$(wc -l < sample_summary.txt)
 
+# Count already downloaded samples
+DOWNLOADED_COUNT=0
+while IFS=$'\t' read -r sample_name type srr_id spots bases; do
+    if [ -n "$sample_name" ]; then
+        status=$(check_sample_downloaded "$sample_name")
+        if [ "$status" = "DOWNLOADED" ]; then
+            DOWNLOADED_COUNT=$((DOWNLOADED_COUNT + 1))
+        fi
+    fi
+done < sample_summary.txt
+
 echo "Summary: $TOTAL_COUNT samples ($TUMOR_COUNT tumor, $NORMAL_COUNT normal)"
+echo "         $DOWNLOADED_COUNT already downloaded, $((TOTAL_COUNT - DOWNLOADED_COUNT)) remaining"
 echo ""
 
 # Step 3: Prompt user for selection

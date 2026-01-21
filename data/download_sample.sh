@@ -11,6 +11,64 @@ fi
 SRR_ID=$1
 SAMPLE_NAME=${2:-$SRR_ID}
 
+# Function to check if FASTQ files are already downloaded
+check_existing_fastq() {
+    local sample=$1
+    # Check for paired-end files
+    if [ -f "${sample}_R1.fastq.gz" ] && [ -f "${sample}_R2.fastq.gz" ]; then
+        # Verify files are not incomplete (no .aria2 files)
+        if [ ! -f "${sample}_R1.fastq.gz.aria2" ] && [ ! -f "${sample}_R2.fastq.gz.aria2" ]; then
+            echo "paired"
+            return 0
+        fi
+    fi
+    # Check for single-end file
+    if [ -f "${sample}.fastq.gz" ]; then
+        if [ ! -f "${sample}.fastq.gz.aria2" ]; then
+            echo "single"
+            return 0
+        fi
+    fi
+    echo "none"
+    return 1
+}
+
+# Function to check if FastQC reports exist
+check_existing_fastqc() {
+    local sample=$1
+    local mode=$2
+    if [ "$mode" = "paired" ]; then
+        if [ -f "${sample}_R1_fastqc.html" ] && [ -f "${sample}_R2_fastqc.html" ]; then
+            return 0
+        fi
+    else
+        if [ -f "${sample}_fastqc.html" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Check if FASTQ files already exist
+EXISTING_MODE=$(check_existing_fastq "$SAMPLE_NAME")
+if [ "$EXISTING_MODE" != "none" ]; then
+    echo "FASTQ files for $SAMPLE_NAME already exist (${EXISTING_MODE}-end). Skipping download."
+
+    # Check if FastQC needs to be run
+    if check_existing_fastqc "$SAMPLE_NAME" "$EXISTING_MODE"; then
+        echo "FastQC reports already exist. Skipping quality control."
+    else
+        echo "Running quality control on existing files..."
+        if [ "$EXISTING_MODE" = "paired" ]; then
+            fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+        else
+            fastqc ${SAMPLE_NAME}.fastq.gz
+        fi
+    fi
+    echo "Sample $SAMPLE_NAME is ready!"
+    exit 0
+fi
+
 echo "Fetching ENA FASTQ URLs for $SRR_ID..."
 
 # Query ENA for fastq HTTPS and FTP links (JSON output)
@@ -50,12 +108,20 @@ else
         mv ${SRR_ID}.fastq.gz ${SAMPLE_NAME}.fastq.gz
         echo "Downloaded: ${SAMPLE_NAME}.fastq.gz"
     fi
-    # Run FastQC
+    # Run FastQC (check if reports already exist)
     echo "Running quality control..."
     if [ -f "${SAMPLE_NAME}_R1.fastq.gz" ] && [ -f "${SAMPLE_NAME}_R2.fastq.gz" ]; then
-        fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+        if [ -f "${SAMPLE_NAME}_R1_fastqc.html" ] && [ -f "${SAMPLE_NAME}_R2_fastqc.html" ]; then
+            echo "FastQC reports already exist. Skipping."
+        else
+            fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+        fi
     elif [ -f "${SAMPLE_NAME}.fastq.gz" ]; then
-        fastqc ${SAMPLE_NAME}.fastq.gz
+        if [ -f "${SAMPLE_NAME}_fastqc.html" ]; then
+            echo "FastQC report already exists. Skipping."
+        else
+            fastqc ${SAMPLE_NAME}.fastq.gz
+        fi
     fi
     echo "Download complete for $SAMPLE_NAME!"
     exit 0
@@ -75,15 +141,23 @@ for i in "${!URLS[@]}"; do
         OUTFILE="${SAMPLE_NAME}.fastq.gz"
     fi
     echo "Downloading $URL -> $OUTFILE ..."
-    aria2c -x 4 -s 4 -o "$OUTFILE" "$URL"
+    aria2c -c -x 4 -s 4 -o "$OUTFILE" "$URL"
 done
 
-# Run FastQC
+# Run FastQC (check if reports already exist)
 echo "Running quality control..."
 if [ ${#URLS[@]} -eq 2 ]; then
-    fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+    if [ -f "${SAMPLE_NAME}_R1_fastqc.html" ] && [ -f "${SAMPLE_NAME}_R2_fastqc.html" ]; then
+        echo "FastQC reports already exist. Skipping."
+    else
+        fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+    fi
 else
-    fastqc ${SAMPLE_NAME}.fastq.gz
+    if [ -f "${SAMPLE_NAME}_fastqc.html" ]; then
+        echo "FastQC report already exists. Skipping."
+    else
+        fastqc ${SAMPLE_NAME}.fastq.gz
+    fi
 fi
 
 echo "Download complete for $SAMPLE_NAME!"
