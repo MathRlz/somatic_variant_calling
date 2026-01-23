@@ -55,6 +55,17 @@ if [ ! -f "$R2" ]; then
     exit 1
 fi
 
+# Verify FASTQ file integrity before alignment
+echo "Verifying FASTQ file integrity..."
+if ! gzip -t "$R1" 2>/dev/null; then
+    echo "ERROR: $R1 is corrupted (gzip integrity check failed)"
+    exit 1
+fi
+if ! gzip -t "$R2" 2>/dev/null; then
+    echo "ERROR: $R2 is corrupted (gzip integrity check failed)"
+    exit 1
+fi
+
 echo "Aligning $SAMPLE..."
 echo "  R1: $R1"
 echo "  R2: $R2"

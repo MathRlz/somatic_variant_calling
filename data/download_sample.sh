@@ -49,6 +49,50 @@ check_existing_fastqc() {
     return 1
 }
 
+# Function to run FastQC and check for truncation errors
+# Returns 0 on success, 1 on truncation error, 2 on other errors
+run_fastqc_with_check() {
+    local files=("$@")
+    local fastqc_output
+    local fastqc_exit_code
+
+    echo "Running FastQC on: ${files[*]}"
+    fastqc_output=$(fastqc "${files[@]}" 2>&1) || fastqc_exit_code=$?
+
+    if echo "$fastqc_output" | grep -q "Ran out of data in the middle of a fastq entry"; then
+        echo ""
+        echo "ERROR: FastQC detected truncated FASTQ file(s)!"
+        echo "The file(s) are incomplete/corrupted and need to be re-downloaded."
+        echo ""
+        return 1
+    elif [ -n "$fastqc_exit_code" ] && [ "$fastqc_exit_code" -ne 0 ]; then
+        echo ""
+        echo "ERROR: FastQC failed with exit code $fastqc_exit_code"
+        echo "Output: $fastqc_output"
+        echo ""
+        return 2
+    fi
+
+    return 0
+}
+
+# Function to handle truncated files - removes corrupted files to trigger re-download
+handle_truncated_files() {
+    local sample=$1
+    local mode=$2
+
+    echo "Removing corrupted files for $sample to allow re-download..."
+    if [ "$mode" = "paired" ]; then
+        rm -f "${sample}_R1.fastq.gz" "${sample}_R2.fastq.gz"
+        rm -f "${sample}_R1_fastqc.html" "${sample}_R2_fastqc.html"
+        rm -f "${sample}_R1_fastqc.zip" "${sample}_R2_fastqc.zip"
+    else
+        rm -f "${sample}.fastq.gz"
+        rm -f "${sample}_fastqc.html" "${sample}_fastqc.zip"
+    fi
+    echo "Corrupted files removed. Please re-run the download."
+}
+
 # Check if FASTQ files already exist
 EXISTING_MODE=$(check_existing_fastq "$SAMPLE_NAME")
 if [ "$EXISTING_MODE" != "none" ]; then
@@ -60,9 +104,15 @@ if [ "$EXISTING_MODE" != "none" ]; then
     else
         echo "Running quality control on existing files..."
         if [ "$EXISTING_MODE" = "paired" ]; then
-            fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+            if ! run_fastqc_with_check "${SAMPLE_NAME}_R1.fastq.gz" "${SAMPLE_NAME}_R2.fastq.gz"; then
+                handle_truncated_files "$SAMPLE_NAME" "paired"
+                exit 1
+            fi
         else
-            fastqc ${SAMPLE_NAME}.fastq.gz
+            if ! run_fastqc_with_check "${SAMPLE_NAME}.fastq.gz"; then
+                handle_truncated_files "$SAMPLE_NAME" "single"
+                exit 1
+            fi
         fi
     fi
     echo "Sample $SAMPLE_NAME is ready!"
@@ -124,19 +174,25 @@ else
         mv ${SRR_ID}.fastq.gz ${SAMPLE_NAME}.fastq.gz
         echo "Downloaded: ${SAMPLE_NAME}.fastq.gz"
     fi
-    # Run FastQC (check if reports already exist)
+    # Run FastQC with error checking (check if reports already exist)
     echo "Running quality control..."
     if [ -f "${SAMPLE_NAME}_R1.fastq.gz" ] && [ -f "${SAMPLE_NAME}_R2.fastq.gz" ]; then
         if [ -f "${SAMPLE_NAME}_R1_fastqc.html" ] && [ -f "${SAMPLE_NAME}_R2_fastqc.html" ]; then
             echo "FastQC reports already exist. Skipping."
         else
-            fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+            if ! run_fastqc_with_check "${SAMPLE_NAME}_R1.fastq.gz" "${SAMPLE_NAME}_R2.fastq.gz"; then
+                handle_truncated_files "$SAMPLE_NAME" "paired"
+                exit 1
+            fi
         fi
     elif [ -f "${SAMPLE_NAME}.fastq.gz" ]; then
         if [ -f "${SAMPLE_NAME}_fastqc.html" ]; then
             echo "FastQC report already exists. Skipping."
         else
-            fastqc ${SAMPLE_NAME}.fastq.gz
+            if ! run_fastqc_with_check "${SAMPLE_NAME}.fastq.gz"; then
+                handle_truncated_files "$SAMPLE_NAME" "single"
+                exit 1
+            fi
         fi
     fi
     echo "Download complete for $SAMPLE_NAME!"
@@ -160,19 +216,25 @@ for i in "${!URLS[@]}"; do
     aria2c -c -x 4 -s 4 -o "$OUTFILE" "$URL"
 done
 
-# Run FastQC (check if reports already exist)
+# Run FastQC with error checking (check if reports already exist)
 echo "Running quality control..."
 if [ ${#URLS[@]} -eq 2 ]; then
     if [ -f "${SAMPLE_NAME}_R1_fastqc.html" ] && [ -f "${SAMPLE_NAME}_R2_fastqc.html" ]; then
         echo "FastQC reports already exist. Skipping."
     else
-        fastqc ${SAMPLE_NAME}_R1.fastq.gz ${SAMPLE_NAME}_R2.fastq.gz
+        if ! run_fastqc_with_check "${SAMPLE_NAME}_R1.fastq.gz" "${SAMPLE_NAME}_R2.fastq.gz"; then
+            handle_truncated_files "$SAMPLE_NAME" "paired"
+            exit 1
+        fi
     fi
 else
     if [ -f "${SAMPLE_NAME}_fastqc.html" ]; then
         echo "FastQC report already exists. Skipping."
     else
-        fastqc ${SAMPLE_NAME}.fastq.gz
+        if ! run_fastqc_with_check "${SAMPLE_NAME}.fastq.gz"; then
+            handle_truncated_files "$SAMPLE_NAME" "single"
+            exit 1
+        fi
     fi
 fi
 
