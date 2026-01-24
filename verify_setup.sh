@@ -83,6 +83,7 @@ check_command "fastqc" || ((ERRORS++))
 check_command "gatk" || ((ERRORS++))
 check_command "java" || ((ERRORS++))
 check_command "python3" || ((ERRORS++))
+check_command "vep" || ((ERRORS++))
 echo ""
 
 echo "=== Checking Tool Versions ==="
@@ -100,6 +101,9 @@ if command -v gatk &> /dev/null; then
 fi
 if command -v java &> /dev/null; then
     echo "Java version: $(java -version 2>&1 | head -1)"
+fi
+if command -v vep &> /dev/null; then
+    echo "VEP version: $(vep --help 2>&1 | grep 'ensembl-vep' | head -1 || echo 'installed')"
 fi
 echo ""
 

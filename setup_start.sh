@@ -243,35 +243,115 @@ if ! "$PROJECT_DIR/venv/bin/pip" install "multiqc>=1.23"; then
     echo "QC reports will be generated individually but not aggregated."
 fi
 
+# --- Miniconda (for VEP and other bioinformatics tools) ---
+echo "Installing Miniconda..."
+CONDA_DIR="$PROJECT_DIR/software/miniconda3"
+if [ ! -d "$CONDA_DIR" ]; then
+    wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
+    bash /tmp/miniconda.sh -b -p "$CONDA_DIR"
+    rm /tmp/miniconda.sh
+fi
+
+# Initialize conda for this script
+eval "$($CONDA_DIR/bin/conda shell.bash hook)"
+
+# Configure conda channels for bioinformatics
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+
+# --- VEP (Variant Effect Predictor) via Bioconda ---
+echo "Installing VEP (Variant Effect Predictor) via Bioconda..."
+if ! conda list -n vep_env 2>/dev/null | grep -q ensembl-vep; then
+    conda create -y -n vep_env ensembl-vep
+fi
+
+# Create VEP cache directory
+mkdir -p "$HOME/.vep"
+
+echo "VEP installed via Conda. To download cache for offline use, run:"
+echo "  conda activate vep_env"
+echo "  vep_install -a cf -s homo_sapiens -y GRCh38 -c ~/.vep"
+
 # =========================================
 # PART 3: CREATE ENVIRONMENT SETUP SCRIPT
 # =========================================
 
-cat > $PROJECT_DIR/setup_env.sh << EOF
+cat > $PROJECT_DIR/setup_env.sh << 'ENVEOF'
 #!/bin/bash
 # Source this file to set up your environment
 # Usage: source setup_env.sh
 
 export PROJECT_DIR="$HOME/somatic_variant_calling"
-export DATA_DIR="$DATA_DIR"
+export DATA_DIR="PLACEHOLDER_DATA_DIR"
 
 # Activate Python virtual environment
-source "\$PROJECT_DIR/venv/bin/activate"
+source "$PROJECT_DIR/venv/bin/activate"
 
-export PATH=\$PROJECT_DIR/software/sratoolkit.3.0.10-ubuntu64/bin:\$PATH
-export PATH=\$PROJECT_DIR/software/samtools-1.19.2/bin:\$PATH
-export PATH=\$PROJECT_DIR/software/bcftools-1.19/bin:\$PATH
-export PATH=\$PROJECT_DIR/software/bwa:\$PATH
-export PATH=\$PROJECT_DIR/software/FastQC:\$PATH
-export PATH=\$PROJECT_DIR/software/gatk-4.5.0.0:\$PATH
-export PATH=\$PROJECT_DIR/software/strelka-2.9.10.centos6_x86_64/bin:\$PATH
-export PATH=\$PROJECT_DIR/software/IGV_Linux_2.17.4:\$PATH
+# Initialize conda and activate VEP environment FIRST
+# (so our tools can override conda's Java)
+if [ -f "$PROJECT_DIR/software/miniconda3/bin/conda" ]; then
+    eval "$($PROJECT_DIR/software/miniconda3/bin/conda shell.bash hook)"
+    conda activate vep_env 2>/dev/null || echo "Note: VEP conda env not found. Run setup_start.sh to install."
+fi
+
+# Add our tools AFTER conda activation so they take precedence
+export PATH=$PROJECT_DIR/software/sratoolkit.3.0.10-ubuntu64/bin:$PATH
+export PATH=$PROJECT_DIR/software/samtools-1.19.2/bin:$PATH
+export PATH=$PROJECT_DIR/software/bcftools-1.19/bin:$PATH
+export PATH=$PROJECT_DIR/software/bwa:$PATH
+export PATH=$PROJECT_DIR/software/FastQC:$PATH
+export PATH=$PROJECT_DIR/software/gatk-4.5.0.0:$PATH
+export PATH=$PROJECT_DIR/software/strelka-2.9.10.centos6_x86_64/bin:$PATH
+export PATH=$PROJECT_DIR/software/IGV_Linux_2.17.4:$PATH
+
+# Find and use Java 17+ (required for GATK 4.5)
+# This overrides conda's Java 11 if present
+find_java17_or_higher() {
+    local java_cmd=""
+    local java_version=""
+
+    # Check common JVM locations
+    for jvm_dir in /usr/lib/jvm/java-*-openjdk* /usr/lib/jvm/temurin-* /usr/lib/jvm/zulu-* /usr/lib/jvm/default-java; do
+        if [ -x "$jvm_dir/bin/java" ]; then
+            java_version=$("$jvm_dir/bin/java" -version 2>&1 | head -1 | sed -E 's/.*"([0-9]+).*/\1/')
+            if [ "$java_version" -ge 17 ] 2>/dev/null; then
+                echo "$jvm_dir"
+                return 0
+            fi
+        fi
+    done
+
+    # Fallback: check if /usr/bin/java is 17+
+    if [ -x "/usr/bin/java" ]; then
+        java_version=$(/usr/bin/java -version 2>&1 | head -1 | sed -E 's/.*"([0-9]+).*/\1/')
+        if [ "$java_version" -ge 17 ] 2>/dev/null; then
+            echo "$(dirname $(dirname $(readlink -f /usr/bin/java)))"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+JAVA_HOME_FOUND=$(find_java17_or_higher)
+if [ -n "$JAVA_HOME_FOUND" ]; then
+    export JAVA_HOME="$JAVA_HOME_FOUND"
+    export PATH="$JAVA_HOME/bin:$PATH"
+else
+    echo "WARNING: Java 17+ not found. GATK 4.5 requires Java 17 or higher."
+    echo "Install with: sudo apt install openjdk-17-jdk"
+fi
 
 echo "Environment set up for somatic variant calling"
-echo "Project directory: \$PROJECT_DIR"
-echo "Data directory: \$DATA_DIR"
+echo "Project directory: $PROJECT_DIR"
+echo "Data directory: $DATA_DIR"
 echo "Python virtual environment activated"
-EOF
+ENVEOF
+
+# Replace placeholder with actual DATA_DIR value
+sed -i "s|PLACEHOLDER_DATA_DIR|$DATA_DIR|g" $PROJECT_DIR/setup_env.sh
 
 chmod +x $PROJECT_DIR/setup_env.sh
 
