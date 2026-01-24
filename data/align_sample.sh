@@ -3,6 +3,8 @@
 # Usage: ./align_sample.sh SAMPLE_NAME
 # Example: ./align_sample.sh TCR002101-T
 
+set -e  # Exit on error
+
 if [ $# -lt 1 ]; then
     echo "Usage: $0 SAMPLE_NAME"
     echo "Example: $0 TCR002101-T"

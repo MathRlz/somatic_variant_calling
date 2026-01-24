@@ -4,6 +4,8 @@
 # Example: ./create_igv_session.sh TCR002101
 # Example: ./create_igv_session.sh TCR002101 TCR002102 TCR002103
 
+set -e  # Exit on error
+
 if [ $# -lt 1 ]; then
     echo "Usage: $0 PATIENT_ID [PATIENT_ID2 ...]"
     echo "Example: $0 TCR002101"

@@ -64,15 +64,54 @@ else
 fi
 
 # Download dbSNP for variant annotation (optional but recommended)
+# IMPORTANT: Must use dbSNP with chr-prefixed contig names to match our reference
 echo ""
 echo "Downloading dbSNP database for filtering..."
 if [ ! -f "dbsnp_156.grch38.vcf.gz" ] || [ -f "dbsnp_156.grch38.vcf.gz.aria2" ]; then
-    rm -f GCF_000001405.40.gz
-    echo "Downloading dbSNP with aria2c..."
-    aria2c -c -x 16 -s 16 -k 1M -o dbsnp_156.grch38.vcf.gz https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz
-    
-    echo "Indexing dbSNP..."
+    # Download dbSNP from NCBI and remap contig names to match our UCSC-style reference
+    echo "Downloading dbSNP from NCBI..."
+    aria2c -c -x 16 -s 16 -k 1M -o dbsnp_ncbi.vcf.gz \
+        "https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz"
+
+    echo "Creating contig name mapping (NCBI RefSeq -> UCSC chr)..."
+    # Create mapping file for the main chromosomes
+    cat > contig_map.txt << 'CONTIGMAP'
+NC_000001.11 chr1
+NC_000002.12 chr2
+NC_000003.12 chr3
+NC_000004.12 chr4
+NC_000005.10 chr5
+NC_000006.12 chr6
+NC_000007.14 chr7
+NC_000008.11 chr8
+NC_000009.12 chr9
+NC_000010.11 chr10
+NC_000011.10 chr11
+NC_000012.12 chr12
+NC_000013.11 chr13
+NC_000014.9 chr14
+NC_000015.10 chr15
+NC_000016.10 chr16
+NC_000017.11 chr17
+NC_000018.10 chr18
+NC_000019.10 chr19
+NC_000020.11 chr20
+NC_000021.9 chr21
+NC_000022.11 chr22
+NC_000023.11 chrX
+NC_000024.10 chrY
+NC_012920.1 chrM
+CONTIGMAP
+
+    echo "Remapping contig names to UCSC style (this may take a while)..."
+    bcftools annotate --rename-chrs contig_map.txt dbsnp_ncbi.vcf.gz -Oz -o dbsnp_156.grch38.vcf.gz
+
+    echo "Indexing remapped dbSNP..."
     bcftools index -t dbsnp_156.grch38.vcf.gz
+
+    # Cleanup
+    rm -f dbsnp_ncbi.vcf.gz contig_map.txt
+    echo "dbSNP download and remapping complete!"
 else
     echo "dbSNP already exists."
 fi

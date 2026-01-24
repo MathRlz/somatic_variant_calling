@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # Exit on error
+
 # Usage: ./download_sample.sh SRR_ID [SAMPLE_NAME]
 
 if [ $# -lt 1 ]; then

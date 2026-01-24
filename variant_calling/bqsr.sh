@@ -3,6 +3,8 @@
 # Usage: ./bqsr.sh SAMPLE_NAME
 # Example: ./bqsr.sh TCR002101-T
 
+set -e  # Exit on error
+
 if [ $# -lt 1 ]; then
     echo "Usage: $0 SAMPLE_NAME"
     echo "Example: $0 TCR002101-T"
@@ -62,17 +64,46 @@ echo "  Reference: $REFERENCE"
 echo "  Known sites: $KNOWN_SITES"
 
 # Step 1: Build recalibration table
-gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" BaseRecalibrator \
+RECAL_TABLE="$RECAL_TABLES_DIR/${SAMPLE}_recal_data.table"
+if ! gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" BaseRecalibrator \
     -I "$INPUT_BAM" \
     -R "$REFERENCE" \
     --known-sites "$KNOWN_SITES" \
-    -O "$RECAL_TABLES_DIR/${SAMPLE}_recal_data.table"
+    -O "$RECAL_TABLE"; then
+    echo "Error: BaseRecalibrator failed for $SAMPLE"
+    exit 1
+fi
+
+# Validate recalibration table was created
+if [ ! -s "$RECAL_TABLE" ]; then
+    echo "Error: Recalibration table is empty or missing: $RECAL_TABLE"
+    exit 1
+fi
 
 # Step 2: Apply recalibration
-gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" ApplyBQSR \
+if ! gatk --java-options "-Xmx4g -XX:ParallelGCThreads=2" ApplyBQSR \
     -I "$INPUT_BAM" \
     -R "$REFERENCE" \
-    --bqsr-recal-file "$RECAL_TABLES_DIR/${SAMPLE}_recal_data.table" \
-    -O "$OUTPUT_BAM"
+    --bqsr-recal-file "$RECAL_TABLE" \
+    -O "$OUTPUT_BAM"; then
+    echo "Error: ApplyBQSR failed for $SAMPLE"
+    rm -f "$OUTPUT_BAM"  # Remove potentially corrupted output
+    exit 1
+fi
+
+# Validate output BAM file
+if [ ! -s "$OUTPUT_BAM" ]; then
+    echo "Error: Output BAM is empty: $OUTPUT_BAM"
+    exit 1
+fi
+
+# Check output BAM has reasonable size (at least 1MB for a valid BAM)
+OUTPUT_SIZE=$(stat -c%s "$OUTPUT_BAM" 2>/dev/null || echo 0)
+if [ "$OUTPUT_SIZE" -lt 1048576 ]; then
+    echo "Error: Output BAM is suspiciously small (${OUTPUT_SIZE} bytes): $OUTPUT_BAM"
+    echo "This usually indicates a failed recalibration."
+    rm -f "$OUTPUT_BAM"
+    exit 1
+fi
 
 echo "Completed $SAMPLE"

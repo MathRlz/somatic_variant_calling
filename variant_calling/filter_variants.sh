@@ -3,6 +3,8 @@
 # Usage: ./filter_variants.sh PATIENT_ID
 # Example: ./filter_variants.sh TCR002101
 
+set -e  # Exit on error
+
 if [ $# -lt 1 ]; then
     echo "Usage: $0 PATIENT_ID"
     echo "Example: $0 TCR002101"

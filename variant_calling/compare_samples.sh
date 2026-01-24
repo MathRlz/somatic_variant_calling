@@ -3,6 +3,8 @@
 # Usage: ./compare_samples.sh PATIENT_ID
 # Example: ./compare_samples.sh TCR002101
 
+set -e  # Exit on error
+
 if [ $# -lt 1 ]; then
     echo "Usage: $0 PATIENT_ID"
     echo "Example: $0 TCR002101"
