@@ -51,4 +51,18 @@ gatk FilterMutectCalls \
     --ob-priors "$VCF_DIR/${PATIENT}_read-orientation-model.tar.gz" \
     -O "$OUTPUT_VCF"
 
+# Normalize variants for CGI compatibility
+# -m -both: Split multiallelic sites into biallelic records
+# -f: Check and fix reference alleles
+TEMP_VCF="${OUTPUT_VCF%.vcf.gz}_temp.vcf.gz"
+bcftools norm \
+    -m -both \
+    -f "$REFERENCE" \
+    "$OUTPUT_VCF" \
+    -O z \
+    -o "$TEMP_VCF"
+
+mv "$TEMP_VCF" "$OUTPUT_VCF"
+tabix -p vcf "$OUTPUT_VCF"
+
 echo "Completed $PATIENT"
