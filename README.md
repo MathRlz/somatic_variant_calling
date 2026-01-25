@@ -25,8 +25,8 @@ The pipeline consists of 13 main steps:
 10. **Variant Annotation** - Annotate with gene names and functional impact
 11. **Variant Prioritization** - Identify high-confidence variants
 12. **Report Generation** - Generate summary statistics
-13. **Sample Comparison** - Identify tumor-specific variants
-14. **IGV Session** - Create visualization file for IGV
+13. **IGV Session** - Create visualization file for IGV
+14. **Interpretation** - Interpret via [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.orgCGI)
 
 ## Repository Structure
 
@@ -47,9 +47,8 @@ repo/
     ├── call_variants.sh        # Call variants with Mutect2
     ├── filter_variants.sh      # Filter variants
     ├── annotate_variants.sh    # Annotate variants
-    ├── prioritize_variants.sh  # Select high-confidence variants
+    ├── prioritize_variants.sh  # Select high-confidence variants (configurable MIN_DP)
     ├── generate_reports.sh     # Generate statistics
-    ├── compare_samples.sh      # Find tumor-specific variants
     └── create_igv_session.sh   # Create IGV visualization
 ```
 
@@ -151,7 +150,6 @@ The setup script installs the following bioinformatics tools:
 ├── vcfs_annotated/              # Annotated variants
 ├── vcfs_prioritized/            # High-confidence variants
 ├── reports/                     # Summary statistics
-├── comparisons/                 # Tumor-specific variants
 ├── metrics/                     # QC metrics
 ├── recal_tables/                # BQSR recalibration tables
 └── igv_session.xml              # IGV visualization file
@@ -213,9 +211,8 @@ bash /path/to/repo/variant_calling/filter_variants.sh
 bash /path/to/repo/variant_calling/annotate_variants.sh
 bash /path/to/repo/variant_calling/prioritize_variants.sh
 
-# Generate reports and comparisons
+# Generate reports and visualization
 bash /path/to/repo/variant_calling/generate_reports.sh
-bash /path/to/repo/variant_calling/compare_samples.sh
 bash /path/to/repo/variant_calling/create_igv_session.sh
 ```
 
@@ -227,15 +224,11 @@ bash /path/to/repo/variant_calling/create_igv_session.sh
    - Somatic mutations with high confidence
    - Ready for clinical interpretation
 
-2. **Tumor-specific variants**: `comparisons/`
-   - Variants present in tumor but not in normal tissue
-   - True somatic mutations
-
-3. **Annotated variants**: `vcfs_annotated/`
+2. **Annotated variants**: `vcfs_annotated/`
    - All variants with gene names and functional annotations
    - Includes impact predictions
 
-4. **Reports**: `reports/`
+3. **Reports**: `reports/`
    - Summary statistics for each sample
    - Variant counts and quality metrics
 

@@ -27,10 +27,7 @@ bash prioritize_variants.sh
 echo "Step 7: Generating reports..."
 bash generate_reports.sh
 
-echo "Step 8: Comparing samples..."
-bash compare_samples.sh
-
-echo "Step 9: Creating IGV session..."
+echo "Step 8: Creating IGV session..."
 bash create_igv_session.sh
 
 echo "=== Pipeline completed successfully! ==="
@@ -39,5 +36,4 @@ echo "  - vcfs_filtered/       : Filtered variants"
 echo "  - vcfs_annotated/      : Annotated variants"
 echo "  - vcfs_prioritized/    : High-confidence variants"
 echo "  - reports/             : Summary statistics"
-echo "  - comparisons/         : Tumor-specific variants"
 echo "  - igv_session.xml      : IGV visualization file"

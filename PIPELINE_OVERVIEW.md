@@ -19,9 +19,8 @@ This document provides a complete technical overview of the somatic variant call
    - [Step 8: Variant Filtering](#step-8-variant-filtering)
    - [Step 9: Variant Annotation](#step-9-variant-annotation)
    - [Step 10: Variant Prioritization](#step-10-variant-prioritization)
-   - [Step 11: Sample Comparison](#step-11-sample-comparison)
-   - [Step 12: Report Generation](#step-12-report-generation)
-   - [Step 13: IGV Session Creation](#step-13-igv-session-creation)
+   - [Step 11: Report Generation](#step-11-report-generation)
+   - [Step 12: IGV Session Creation](#step-12-igv-session-creation)
 5. [Data Flow Diagram](#data-flow-diagram)
 6. [Directory Structure](#directory-structure)
 7. [Quality Control](#quality-control)
@@ -506,48 +505,39 @@ tabix -p vcf ${PATIENT}_annotated.vcf.gz
 #### Command
 
 ```bash
-bcftools view -f PASS ${PATIENT}_filtered.vcf.gz \
-    | bcftools view -i 'FORMAT/DP>=20' \
-    -Oz -o ${PATIENT}_high_confidence.vcf.gz
+# Default: MIN_DP=20, MIN_VAF=0.05
+bcftools view -i '
+  (FILTER="PASS" ||
+   FILTER~"weak_evidence" ||
+   FILTER~"strand_bias" ||
+   FILTER~"clustered_events") &&
+  FORMAT/DP >= $MIN_DP &&
+  FORMAT/AF >= $MIN_VAF
+' ${PATIENT}_filtered.vcf.gz -Oz -o ${PATIENT}_high_confidence.vcf.gz
 
 tabix -p vcf ${PATIENT}_high_confidence.vcf.gz
 ```
 
 #### Filtering Criteria
 
-| Criterion | Requirement |
-|-----------|-------------|
-| Filter status | `PASS` (passed all Mutect2 filters) |
-| Read depth | ≥20x coverage |
+| Criterion | Default | Description |
+|-----------|---------|-------------|
+| Filter status | PASS + soft filters | Rescues potential drivers with soft filter flags |
+| Read depth | ≥20 (MIN_DP) | Configurable via environment variable |
+| VAF | ≥5% (MIN_VAF) | Removes noise while keeping subclonal drivers |
+
+#### Custom Thresholds
+
+```bash
+# Less strict filtering (e.g., to include more variants)
+MIN_DP=10 ./prioritize_variants.sh PATIENT lenient
+```
 
 **Output:** `vcfs_prioritized/${PATIENT}_high_confidence.vcf.gz`
 
 ---
 
-### Step 11: Sample Comparison
-
-**Script:** `variant_calling/compare_samples.sh`
-
-**Purpose:** Generate final list of tumor-specific variants.
-
-#### Command
-
-```bash
-bcftools view -i 'FORMAT/DP>=20' ${PATIENT}_high_confidence.vcf.gz \
-    -Oz -o ${PATIENT}_somatic_candidates.vcf.gz
-
-tabix -p vcf ${PATIENT}_somatic_candidates.vcf.gz
-
-# Count variants
-count=$(bcftools view -H ${PATIENT}_somatic_candidates.vcf.gz | wc -l)
-echo "Found $count somatic candidates"
-```
-
-**Output:** `comparisons/${PATIENT}_somatic_candidates.vcf.gz`
-
----
-
-### Step 12: Report Generation
+### Step 11: Report Generation
 
 **Script:** `variant_calling/generate_reports.sh`
 
@@ -571,7 +561,7 @@ bcftools view -v indels -H ${PATIENT}_high_confidence.vcf.gz | wc -l > ${PATIENT
 
 ---
 
-### Step 13: IGV Session Creation
+### Step 12: IGV Session Creation
 
 **Script:** `variant_calling/create_igv_session.sh`
 
@@ -633,9 +623,8 @@ bcftools view -v indels -H ${PATIENT}_high_confidence.vcf.gz | wc -l > ${PATIENT
 │  _filtered.vcf.gz (normalized)                                      │
 │      ↓ VEP                                                          │
 │  _annotated.vcf.gz                                                  │
-│      ↓ bcftools view (PASS + DP>=20)                                │
+│      ↓ bcftools view (configurable MIN_DP, MIN_VAF)                 │
 │  _high_confidence.vcf.gz                                            │
-│      ├── _somatic_candidates.vcf.gz                                 │
 │      ├── reports/*.txt                                              │
 │      └── igv_session.xml                                            │
 └─────────────────────────────────────────────────────────────────────┘
@@ -678,8 +667,6 @@ $DATA_DIR/
 │   └── {PATIENT}_annotated.vcf.gz
 ├── vcfs_prioritized/
 │   └── {PATIENT}_high_confidence.vcf.gz
-├── comparisons/
-│   └── {PATIENT}_somatic_candidates.vcf.gz
 ├── reports/
 │   ├── {PATIENT}_stats.txt
 │   └── summary.txt

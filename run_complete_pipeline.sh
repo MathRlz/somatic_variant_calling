@@ -15,6 +15,8 @@ SKIP_SETUP=false
 FORCE_REGENERATE=false
 DATA_DIR=""
 PROJECT_DIR=""
+MIN_DP="20"
+MIN_VAF="0.05"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -46,6 +48,14 @@ while [[ $# -gt 0 ]]; do
             NUM_PROCESSORS="$2"
             shift 2
             ;;
+        --min-dp)
+            MIN_DP="$2"
+            shift 2
+            ;;
+        --min-vaf)
+            MIN_VAF="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -59,6 +69,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --data-dir DIR        Specify directory for data files (default: ~/somatic_variant_calling/data)"
             echo "  --project-dir DIR     Specify project directory (default: ~/somatic_variant_calling)"
             echo "  --num-processors N    Number of processors/threads to use (default: 8)"
+            echo "  --min-dp N            Minimum read depth for variant prioritization (default: 20)"
+            echo "  --min-vaf N           Minimum variant allele frequency (default: 0.05)"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "Examples:"
@@ -76,6 +88,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "  # Use 16 processors:"
             echo "  $0 --num-processors 16"
+            echo ""
+            echo "  # Less strict variant filtering (DP>=10):"
+            echo "  $0 --skip-download --min-dp 10"
             exit 0
             ;;
         *)
@@ -98,6 +113,8 @@ fi
 # Export variables so subscripts can use them
 export DATA_DIR
 export NUM_PROCESSORS
+export MIN_DP
+export MIN_VAF
 
 echo "========================================="
 echo "Somatic Variant Calling - Complete Pipeline"
@@ -107,6 +124,8 @@ echo "Configuration:"
 echo "  Project directory: $PROJECT_DIR"
 echo "  Data directory: $DATA_DIR"
 echo "  Number of processors: $NUM_PROCESSORS"
+echo "  Min read depth (prioritization): $MIN_DP"
+echo "  Min VAF (prioritization): $MIN_VAF"
 echo "  Skip setup: $SKIP_SETUP"
 echo "  Skip download: $SKIP_DOWNLOAD"
 echo "  Skip alignment: $SKIP_ALIGNMENT"
@@ -481,28 +500,12 @@ for patient in "${SELECTED_PATIENTS[@]}"; do
     fi
 
     # =========================================
-    # STEP 11: COMPARE SAMPLES
-    # =========================================
-
-    output="$DATA_DIR/comparisons/${patient}_somatic_candidates.vcf.gz"
-    if check_step_output "Sample Comparison" "$output" "$patient"; then
-        echo "STEP 11: Comparing samples for $patient..."
-
-        if [ ! -f "$SCRIPT_DIR/variant_calling/compare_samples.sh" ]; then
-            echo "Error: compare_samples.sh not found"
-            exit 1
-        fi
-
-        bash "$SCRIPT_DIR/variant_calling/compare_samples.sh" "$patient"
-    fi
-
-    # =========================================
-    # STEP 12: GENERATE REPORTS
+    # STEP 11: GENERATE REPORTS
     # =========================================
 
     output="$DATA_DIR/reports/${patient}_stats.txt"
     if check_step_output "Report Generation" "$output" "$patient"; then
-        echo "STEP 12: Generating reports for $patient..."
+        echo "STEP 11: Generating reports for $patient..."
 
         if [ ! -f "$SCRIPT_DIR/variant_calling/generate_reports.sh" ]; then
             echo "Error: generate_reports.sh not found"
@@ -515,12 +518,12 @@ for patient in "${SELECTED_PATIENTS[@]}"; do
 done  # End patient loop
 
 # =========================================
-# STEP 13: CREATE IGV SESSION (all patients)
+# STEP 12: CREATE IGV SESSION (all patients)
 # =========================================
 
 echo ""
 echo "========================================="
-echo "STEP 13: Creating IGV visualization session"
+echo "STEP 12: Creating IGV visualization session"
 echo "========================================="
 
 if [ ! -f "$SCRIPT_DIR/variant_calling/create_igv_session.sh" ]; then
@@ -551,14 +554,12 @@ echo "  - vcfs_filtered/       : Filtered variants"
 echo "  - vcfs_annotated/      : Annotated variants"
 echo "  - vcfs_prioritized/    : High-confidence variants"
 echo "  - reports/             : Summary statistics"
-echo "  - comparisons/         : Tumor-specific variants"
 echo "  - igv_session.xml      : IGV visualization file"
 echo ""
 echo "Next steps:"
 echo "  1. Review reports in: $DATA_DIR/reports/"
-echo "  2. Examine tumor-specific variants in: $DATA_DIR/comparisons/"
+echo "  2. Explore high-confidence variants in: $DATA_DIR/vcfs_prioritized/"
 echo "  3. Open IGV and load: $DATA_DIR/igv_session.xml"
-echo "  4. Explore high-confidence variants in: $DATA_DIR/vcfs_prioritized/"
 echo ""
 echo "To visualize results in IGV:"
 echo "  cd $PROJECT_DIR/software/IGV_Linux_2.17.4"

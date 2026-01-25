@@ -28,9 +28,8 @@ repo/
     ├── call_variants.sh            # Call variants with GATK Mutect2
     ├── filter_variants.sh          # Filter variants by quality
     ├── annotate_variants.sh        # Annotate with gene info
-    ├── prioritize_variants.sh      # Select high-confidence variants
+    ├── prioritize_variants.sh      # Select high-confidence variants (configurable MIN_DP)
     ├── generate_reports.sh         # Generate summary reports
-    ├── compare_samples.sh          # Identify tumor-specific variants
     ├── create_igv_session.sh       # Create IGV visualization
     └── run_pipeline.sh             # Run variant calling steps only
 ```
@@ -39,9 +38,7 @@ repo/
 
 ### Documentation (5 files)
 - `README.md` - Complete documentation with all instructions
-- `QUICKSTART.md` - Fast start guide for beginners
 - `PIPELINE_OVERVIEW.md` - Technical details and concepts
-- `VERSION.md` - Version history and compatibility
 - `REPOSITORY_STRUCTURE.md` - This file
 
 ### Main Scripts (3 files)
@@ -55,18 +52,17 @@ repo/
 - `download_ncbi_minimal.sh` - Get small test dataset
 - `align_all.sh` - Align reads to reference with BWA
 
-### Variant Calling Scripts (11 files)
+### Variant Calling Scripts (10 files)
 - `mark_duplicates.sh` - Remove duplicates (Step 1)
 - `add_read_groups.sh` - Add metadata (Step 2)
 - `bqsr.sh` - Quality recalibration (Step 3)
 - `call_variants.sh` - Variant calling (Step 4)
 - `filter_variants.sh` - Quality filtering (Step 5)
 - `annotate_variants.sh` - Gene annotation (Step 6)
-- `prioritize_variants.sh` - Select best variants (Step 7)
+- `prioritize_variants.sh` - Select best variants (Step 7, configurable MIN_DP)
 - `generate_reports.sh` - Create reports (Step 8)
-- `compare_samples.sh` - Find tumor variants (Step 9)
-- `create_igv_session.sh` - Visualization setup (Step 10)
-- `run_pipeline.sh` - Run steps 2-10 sequentially
+- `create_igv_session.sh` - Visualization setup (Step 9)
+- `run_pipeline.sh` - Run steps 2-9 sequentially
 
 ## Script Relationships
 
@@ -119,10 +115,6 @@ generate_reports.sh
     └── Requires: data/vcfs_filtered/*.vcf
     └── Creates: data/reports/*.txt
 
-compare_samples.sh
-    └── Requires: data/vcfs_filtered/*.vcf (tumor and normal)
-    └── Creates: data/comparisons/*_tumor_specific.vcf
-
 create_igv_session.sh
     └── Requires: BAM files, VCF files, reference
     └── Creates: data/igv_session.xml
@@ -144,8 +136,7 @@ create_igv_session.sh
 10. annotate_variants.sh
 11. prioritize_variants.sh
 12. generate_reports.sh
-13. compare_samples.sh
-14. create_igv_session.sh
+13. create_igv_session.sh
 ```
 
 #### Partial Pipeline (run_pipeline.sh)
@@ -158,8 +149,7 @@ Assumes BAM files exist in data/bam_marked/
 5. annotate_variants.sh
 6. prioritize_variants.sh
 7. generate_reports.sh
-8. compare_samples.sh
-9. create_igv_session.sh
+8. create_igv_session.sh
 ```
 
 ## Expected Directory Structure After Setup
