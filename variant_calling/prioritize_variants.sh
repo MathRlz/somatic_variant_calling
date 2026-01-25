@@ -34,10 +34,20 @@ echo "Prioritizing $PATIENT..."
 echo "  Input: $INPUT_VCF"
 echo "  Output: $OUTPUT_VCF"
 
-# Extract PASS variants only with minimum depth
-bcftools view -f PASS "$INPUT_VCF" \
-    | bcftools view -i 'FORMAT/DP>=20' \
-    -o "$OUTPUT_VCF" -O z
+# Filter variants using following thresholds:
+# - DP >= 10 (TCGA/PCAWG standard)
+# - VAF >= 5% (removes noise while keeping subclonal drivers)
+# - PASS or soft filters only (rescues potential drivers filtered by
+#   weak_evidence, strand_bias, or clustered_events)
+# Hard artifact filters (normal_artifact, contamination, orientation) are excluded
+bcftools view -i '
+  (FILTER="PASS" ||
+   FILTER~"weak_evidence" ||
+   FILTER~"strand_bias" ||
+   FILTER~"clustered_events") &&
+  FORMAT/DP >= 10 &&
+  FORMAT/AF >= 0.05
+' "$INPUT_VCF" -o "$OUTPUT_VCF" -O z
 
 # Index
 tabix -p vcf "$OUTPUT_VCF"
