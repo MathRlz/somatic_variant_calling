@@ -326,6 +326,7 @@ If you use this pipeline, please cite the relevant tools:
 - **BWA**: Li H. and Durbin R. (2009) Fast and accurate short read alignment with Burrows-Wheeler Transform. Bioinformatics, 25:1754-60.
 - **GATK**: McKenna A, et al. (2010) The Genome Analysis Toolkit. Genome Research, 20:1297-303.
 - **SAMtools**: Li H., et al. (2009) The Sequence Alignment/Map format and SAMtools. Bioinformatics, 25:2078-9.
+- **Cancer Genomic Data**: Becnel, L., Pereira, S., Drummond, J. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci Data 3, 160010 (2016). https://doi.org/10.1038/sdata.2016.10
 
 ## Support
 
