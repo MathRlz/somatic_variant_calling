@@ -1,6 +1,3 @@
-# Attention
-This project used Artificial Intelligence assistance.
-
 # Somatic Variant Calling Pipeline
 
 Complete bioinformatics pipeline for detecting somatic mutations in cancer samples by comparing tumor and normal tissue.
@@ -338,3 +335,6 @@ For issues with:
 ## License
 
 This pipeline is provided for educational and research purposes. Individual tools have their own licenses.
+
+## AI Usage
+This project used Artificial Intelligence assistance.
